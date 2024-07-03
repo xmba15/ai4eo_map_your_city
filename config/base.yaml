@@ -1,0 +1,42 @@
+---
+seed: 1984
+
+num_workers: 4
+experiment_name: "2024-04-07"
+
+dataset:
+  val_split: 0.1
+  train_dir: ~/publicWorkspace/data/building-age-dataset/train/data
+  test_dir: ~/publicWorkspace/data/building-age-dataset/test/data
+  train_csv: ~/publicWorkspace/data/building-age-dataset/train/train-set.csv
+  test_csv: ~/publicWorkspace/data/building-age-dataset/test/test-set.csv
+
+model:
+  encoder_name: efficientnet_b2
+  num_classes: 7
+
+optimizer:
+  type: timm.optim.AdamP
+  lr: 0.0005
+
+scheduler:
+  type: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
+  T_0: 10
+  T_mult: 2
+
+trainer:
+  devices: 1
+  accelerator: "cuda"
+  max_epochs: 50
+  gradient_clip_val: 5.0
+  accumulate_grad_batches: 16
+  resume_from_checkpoint:
+
+train_parameters:
+  batch_size: 3
+
+val_parameters:
+  batch_size: 3
+
+output_root_dir: experiments
+image_size: 512

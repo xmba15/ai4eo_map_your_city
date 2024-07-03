@@ -1,0 +1,23 @@
+[tool.flake8]
+max-line-length = 120
+max-complexity = 20
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = """
+    missing-docstring,
+    import-error,
+    wrong-import-position,
+    exec-used,
+    too-many-locals
+"""
+max-line-length = 120

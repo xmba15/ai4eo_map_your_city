@@ -1,0 +1,9 @@
+name: ai4eo
+channels:
+  - defaults
+  - anaconda
+dependencies:
+  - python=3.8
+  - pip
+  - pip:
+      - -r requirements.txt
