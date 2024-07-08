@@ -3,7 +3,11 @@ import torch
 from timm.models.layers import SelectAdaptivePool2d
 from torch import nn
 
-__all__ = ("MultiModalNet",)
+__all__ = (
+    "MultiModalNet",
+    "MultiModalNetFullModalityFeatureFusion",
+    "MultiModalNetFullModalityGeometricFusion",
+)
 
 
 class CompositionalLayer(nn.Module):
@@ -27,20 +31,13 @@ class CompositionalLayer(nn.Module):
         return features
 
 
-def _get_feature_extractor(encoder_name):
+def _get_extractor_in_features(
+    encoder_name,
+    in_chans=3,
+):
     model = timm.create_model(
         encoder_name,
-        pretrained=True,
-    )
-    in_features = model.get_classifier().in_features
-    model.reset_classifier(0, "")
-    return model, in_features
-
-
-def _get_extractor_in_features(encoder_name):
-    model = timm.create_model(
-        encoder_name,
-        pretrained=True,
+        in_chans=in_chans,
     )
     return model.get_classifier().in_features
 
@@ -84,11 +81,6 @@ class MultiModalNet(nn.Module):
             nn.Linear(in_features=self.in_features, out_features=3, bias=True),
         )
 
-        # self.bn = nn.Sequential(
-        #     nn.BatchNorm2d(self.in_features * 3),
-        #     nn.ReLU(inplace=True),
-        # )
-        # self.global_pool = SelectAdaptivePool2d(pool_type="avg", flatten=nn.Flatten(start_dim=1, end_dim=-1))
         self.fc = nn.Linear(self.in_features * 3 + self.num_classes, self.num_classes)
 
     def forward(
@@ -140,10 +132,16 @@ class MultiModalNetFullModalityFeatureFusion(nn.Module):
     ):
         super().__init__()
 
+        self.in_features_rgb = _get_extractor_in_features(encoder_name)
+        self.in_features_s2 = _get_extractor_in_features(encoder_name, in_chans=12)
+
+        self.num_classes = num_classes
+
         self.s2_enc = timm.create_model(
             encoder_name,
             pretrained=True,
             num_classes=0,
+            in_chans=12,
         )
 
         self.ortho_enc = timm.create_model(
@@ -158,10 +156,109 @@ class MultiModalNetFullModalityFeatureFusion(nn.Module):
             num_classes=0,
         )
 
+        self.fc = nn.Sequential(
+            nn.Linear(
+                self.in_features_rgb * 2 + self.in_features_s2 + self.num_classes,
+                self.in_features_rgb,
+            ),
+            nn.ReLU(inplace=True),
+            nn.Linear(
+                self.in_features_rgb,
+                self.num_classes,
+            ),
+        )
+
     def forward(
         self,
         images,
         s2_data,
         country_id,
     ):
-        pass
+        feat = torch.cat(
+            (
+                self.s2_enc(s2_data),
+                self.ortho_enc(images[:, :3, ...]),
+                self.street_enc(images[:, 3:, ...]),
+                nn.functional.one_hot(country_id, num_classes=self.num_classes).float(),
+            ),
+            axis=1,
+        )
+        feat = self.fc(feat)
+
+        return feat
+
+
+class MultiModalNetFullModalityGeometricFusion(nn.Module):
+    def __init__(
+        self,
+        encoder_name,
+        num_classes,
+    ):
+        super().__init__()
+
+        self.in_features = _get_extractor_in_features(encoder_name)
+        self.num_classes = num_classes
+
+        self.s2_enc = timm.create_model(
+            encoder_name,
+            pretrained=True,
+            num_classes=0,
+            global_pool="",
+            output_stride=4,
+            in_chans=12,
+        )
+
+        self.ortho_enc = timm.create_model(
+            encoder_name,
+            pretrained=True,
+            global_pool="",
+            num_classes=0,
+        )
+
+        self.street_enc = timm.create_model(
+            encoder_name,
+            pretrained=True,
+            global_pool="",
+            num_classes=0,
+        )
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(self.in_features * 3, self.in_features, kernel_size=1),
+            nn.BatchNorm2d(self.in_features),
+            nn.ReLU(inplace=True),
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(self.in_features * 3, self.in_features, kernel_size=1),
+            nn.BatchNorm2d(self.in_features),
+            nn.ReLU(inplace=True),
+        )
+        self.global_pool = SelectAdaptivePool2d(pool_type="avg", flatten=nn.Flatten(start_dim=1, end_dim=-1))
+        self.fc = nn.Linear(self.in_features + self.num_classes, self.num_classes)
+
+    def forward(
+        self,
+        images,
+        s2_data,
+        country_id,
+    ):
+        s2_feat = self.s2_enc(s2_data)
+        ortho_feat = self.ortho_enc(images[:, :3, ...])
+        street_feat = self.street_enc(images[:, 3:, ...])
+
+        feat = torch.cat((s2_feat, ortho_feat, street_feat), axis=1)
+        feat = self.conv1(feat)
+
+        s2_feat = torch.mul(s2_feat, feat)
+        ortho_feat = torch.mul(ortho_feat, feat)
+        street_feat = torch.mul(street_feat, feat)
+
+        feat = torch.cat((s2_feat, ortho_feat, street_feat), axis=1)
+
+        feat = self.conv2(feat)
+        feat = self.global_pool(feat)
+
+        feat = torch.cat((feat, nn.functional.one_hot(country_id, num_classes=self.num_classes).float()), axis=1)
+        feat = self.fc(feat)
+
+        return feat

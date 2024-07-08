@@ -69,9 +69,12 @@ class MapYourCityDataset(Dataset):
         street_data = cv2.imread(street_path)
         if self.train:
             assert street_data is not None, f"{street_path} is not a street valid path"
+        if street_data is not None:
+            street_data = street_data[..., ::-1]
 
         orthophoto_data = cv2.imread(orthophoto_path)
         assert orthophoto_data is not None, f"{orthophoto_path} is not a orthophoto valid path"
+        orthophoto_data = orthophoto_data[..., ::-1]
 
         out = s2_data, orthophoto_data, street_data, country_id_int
         if self.train:

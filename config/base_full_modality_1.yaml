@@ -1,0 +1,48 @@
+---
+seed: 2024
+
+num_workers: 4
+experiment_name: "2024-07-09-f0"
+
+dataset:
+  n_splits: 10
+  fold_th: 0
+  train_dir: ~/publicWorkspace/data/building-age-dataset/train/data
+  test_dir: ~/publicWorkspace/data/building-age-dataset/test/data
+  train_csv: ~/publicWorkspace/data/building-age-dataset/train/train-set.csv
+  test_csv: ~/publicWorkspace/data/building-age-dataset/test/test-set.csv
+
+model:
+  type: src.models.MultiModalNetFullModalityFeatureFusion
+  encoder_name: tf_efficientnetv2_s
+  num_classes: 7
+
+optimizer:
+  type: timm.optim.AdamW
+  lr: 0.0005
+  weight_decay: 0.001
+
+scheduler:
+  type: torch.optim.lr_scheduler.ReduceLROnPlateau
+  mode: min
+  factor: 0.5
+  patience: 10
+  threshold: 0.00005
+  verbose: True
+
+trainer:
+  devices: [0]
+  accelerator: "cuda"
+  max_epochs: 50
+  gradient_clip_val: 5.0
+  accumulate_grad_batches: 8
+  resume_from_checkpoint:
+
+train_parameters:
+  batch_size: 5
+
+val_parameters:
+  batch_size: 5
+
+output_root_dir: experiments
+image_size: 512

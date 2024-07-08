@@ -14,3 +14,5 @@ mamba activate ai4eo
 ## :gem: References
 
 ---
+
+- [Model Fusion for Building Type Classification from Aerial and Street View Images](https://www.mdpi.com/2072-4292/11/11/1259#)

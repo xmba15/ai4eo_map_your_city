@@ -7,7 +7,10 @@ from torchvision.utils import make_grid
 from src.models import DomainClsLoss, FocalLoss, MultiModalNet
 from src.utils import get_object_from_dict
 
-__all__ = ("MultiModalNetPl", "DomainClsLoss")
+__all__ = (
+    "MultiModalNetPl",
+    "MultiModalNetFullModalityPl",
+)
 
 
 class MultiModalNetPl(pl.LightningModule):
@@ -145,5 +148,113 @@ class MultiModalNetPl(pl.LightningModule):
             self.hparams["scheduler"],
             optimizer=optimizer,
         )
+
+        return [optimizer], [scheduler]
+
+
+class MultiModalNetFullModalityPl(pl.LightningModule):
+    def __init__(self, hparams):
+        super().__init__()
+        self.hparams.update(hparams)
+
+        self.model = get_object_from_dict(
+            self.hparams["model"],
+        )
+        self.accuracy = Accuracy(task="multiclass", num_classes=self.hparams["model"]["num_classes"])
+        self.loss = FocalLoss()
+
+    def forward(self, images, s2_data, country_id):
+        return self.model(images, s2_data, country_id)
+
+    def common_step(self, batch, batch_idx, is_val: bool = False):
+        images, s2_data, country_id, label = batch
+        logits = self.forward(images, s2_data, country_id)
+        batch_size = logits.shape[0]
+
+        loss = self.loss(logits, label)
+
+        acc = None
+        if is_val:
+            _, pred = logits.max(1)
+            acc = self.accuracy(pred, label)
+
+        return loss, acc
+
+    def training_step(self, batch, batch_idx):
+        if batch_idx % 1000 == 0:
+            self.logger.experiment.add_image(
+                "train_ortho",
+                make_grid(
+                    batch[0][:, :3, :, :],
+                    nrow=batch[0].shape[0],
+                ),
+                global_step=self.current_epoch * self.trainer.num_training_batches + batch_idx,
+            )
+
+            self.logger.experiment.add_image(
+                "train_street",
+                make_grid(
+                    batch[0][:, 3:, :, :],
+                    nrow=batch[0].shape[0],
+                ),
+                global_step=self.current_epoch * self.trainer.num_training_batches + batch_idx,
+            )
+
+            self.logger.experiment.add_image(
+                "train_s2",
+                make_grid(
+                    batch[1][:, [3, 2, 1], :, :],
+                    nrow=batch[0].shape[0],
+                ),
+                global_step=self.current_epoch * self.trainer.num_training_batches + batch_idx,
+            )
+
+        loss, _ = self.common_step(batch, batch_idx, is_val=False)
+
+        self.log(
+            "train_loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        loss, acc = self.common_step(batch, batch_idx, is_val=True)
+
+        self.log(
+            "val_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+
+        self.log(
+            "val_acc",
+            acc,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+        )
+
+        return acc
+
+    def configure_optimizers(self):
+        optimizer = get_object_from_dict(
+            self.hparams["optimizer"],
+            params=[x for x in self.parameters() if x.requires_grad],
+        )
+
+        scheduler = {
+            "scheduler": get_object_from_dict(
+                self.hparams["scheduler"],
+                optimizer=optimizer,
+            ),
+            "monitor": "val_loss",
+        }
 
         return [optimizer], [scheduler]
