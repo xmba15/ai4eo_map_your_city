@@ -2,11 +2,11 @@
 seed: 2024
 
 num_workers: 4
-experiment_name: "2024-07-08-f2"
+experiment_name: "2024-07-08-input-dropout-f5"
 
 dataset:
   n_splits: 10
-  fold_th: 2
+  fold_th: 5
   train_dir: ~/publicWorkspace/data/building-age-dataset/train/data
   test_dir: ~/publicWorkspace/data/building-age-dataset/test/data
   train_csv: ~/publicWorkspace/data/building-age-dataset/train/train-set.csv

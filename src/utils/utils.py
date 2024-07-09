@@ -33,11 +33,4 @@ def fix_seed(seed):
 
 
 def worker_init_fn(worker_id):
-    seed = 0
-
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    torch.manual_seed(seed)
+    np.random.seed(np.random.get_state()[1][0] + worker_id)

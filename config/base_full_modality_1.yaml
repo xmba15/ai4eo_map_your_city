@@ -17,23 +17,24 @@ model:
   encoder_name: tf_efficientnetv2_s
   num_classes: 7
 
+loss:
+  classification:
+    type: src.models.FocalLossLabelSmoothing
+
 optimizer:
   type: timm.optim.AdamW
-  lr: 0.0005
+  lr: 0.0002
   weight_decay: 0.001
 
 scheduler:
-  type: torch.optim.lr_scheduler.ReduceLROnPlateau
-  mode: min
-  factor: 0.5
-  patience: 10
-  threshold: 0.00005
-  verbose: True
+  type: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: 30
+  eta_min: 0.00005
 
 trainer:
   devices: [0]
   accelerator: "cuda"
-  max_epochs: 50
+  max_epochs: 30
   gradient_clip_val: 5.0
   accumulate_grad_batches: 8
   resume_from_checkpoint:

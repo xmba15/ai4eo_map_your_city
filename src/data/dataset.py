@@ -88,8 +88,10 @@ class CustomSubset(Dataset):
         self,
         subset,
         transforms_dict=None,
+        train=True,
     ):
         self.subset = subset
+        self.train = train
 
         self.transforms_dict = transforms_dict
 
@@ -98,7 +100,10 @@ class CustomSubset(Dataset):
 
     def __getitem__(self, idx):
         assert idx < self.__len__()
-        s2_data, orthophoto_data, street_data, country_id_int, label = self.subset[idx]
+        if self.train:
+            s2_data, orthophoto_data, street_data, country_id_int, label = self.subset[idx]
+        else:
+            s2_data, orthophoto_data, street_data, country_id_int = self.subset[idx]
 
         assert orthophoto_data is not None
         assert s2_data is not None
@@ -111,14 +116,13 @@ class CustomSubset(Dataset):
             s2_data = self.transforms_dict["s2"](image=s2_data)["image"]
 
         if street_data is None:
-            return (
-                orthophoto_data,
-                s2_data,
-                country_id_int,
-                label,
-            )
+            out = orthophoto_data, s2_data, country_id_int
+            if self.train:
+                return *out, label
 
-        return (
+            return out
+
+        out = (
             torch.cat(
                 [
                     orthophoto_data,
@@ -128,5 +132,9 @@ class CustomSubset(Dataset):
             ),
             s2_data,
             country_id_int,
-            label,
         )
+
+        if self.train:
+            return *out, label
+
+        return out

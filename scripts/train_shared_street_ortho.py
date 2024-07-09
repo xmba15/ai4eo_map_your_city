@@ -17,20 +17,24 @@ from torch.utils.data import DataLoader, Subset
 _CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(_CURRENT_DIR, "../"))
 from src.data import CountryCode, CustomSubset, MapYourCityDataset, S2RandomRotation
-from src.integrated import MultiModalNetPl
+from src.integrated import MultiModalNetSharedStreetOrthoPl
 from src.models import MultiModalNet
 from src.utils import fix_seed, worker_init_fn
 
 
 def get_args():
     parser = argparse.ArgumentParser("train for missing-modality inference")
-    parser.add_argument("--config_path", type=str, default="./config/base_missing_modality_1.yaml")
+    parser.add_argument("--config_path", type=str, default="./config/base_missing_modality_2.yaml")
 
     return parser.parse_args()
 
 
 def get_transforms(hparams):
     image_size = hparams["image_size"]
+
+    def create_input_drop_out(image, **params):
+        image_size = hparams["image_size"]
+        return np.zeros((int(image_size), int(image_size), 3), dtype=np.float32)
 
     all_transforms = {}
     all_transforms["street"] = {
@@ -89,6 +93,20 @@ def get_transforms(hparams):
         ),
     }
 
+    if hparams["input_dropout"]:
+        all_transforms["street"]["train"] = alb.OneOf(
+            [
+                all_transforms["street"]["train"],
+                alb.Compose(
+                    [
+                        alb.Lambda(image=create_input_drop_out),
+                        ToTensorV2(),
+                    ]
+                ),
+            ],
+            p=1.0,
+        )
+
     all_transforms["ortho"] = {
         "train": alb.Compose(
             [
@@ -99,6 +117,7 @@ def get_transforms(hparams):
                                 alb.Resize(height=image_size, width=image_size),
                                 alb.ShiftScaleRotate(
                                     shift_limit=(-0.005, 0.005),
+                                    scale_limit=(-0.1, 0.2),
                                     rotate_limit=(-180, 180),
                                     border_mode=cv2.BORDER_CONSTANT,
                                     value=0,
@@ -110,6 +129,7 @@ def get_transforms(hparams):
                             [
                                 alb.ShiftScaleRotate(
                                     shift_limit=(-0.005, 0.005),
+                                    scale_limit=(-0.1, 0.2),
                                     rotate_limit=(-180, 180),
                                     border_mode=cv2.BORDER_CONSTANT,
                                     value=0,
@@ -244,7 +264,8 @@ def main():
         num_workers=hparams["num_workers"],
     )
 
-    model = MultiModalNetPl(hparams)
+    model = MultiModalNetSharedStreetOrthoPl(hparams)
+
     trainer = Trainer(
         default_root_dir=hparams["output_root_dir"],
         max_epochs=hparams["trainer"]["max_epochs"],

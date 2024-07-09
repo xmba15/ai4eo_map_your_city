@@ -17,14 +17,13 @@ from torch.utils.data import DataLoader, Subset
 _CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(_CURRENT_DIR, "../"))
 from src.data import CountryCode, CustomSubset, MapYourCityDataset, S2RandomRotation
-from src.integrated import MultiModalNetPl
-from src.models import MultiModalNet
+from src.integrated import MultiModalNetFullModalityPl, MultiModalNetPl
 from src.utils import fix_seed, worker_init_fn
 
 
 def get_args():
-    parser = argparse.ArgumentParser("train for missing-modality inference")
-    parser.add_argument("--config_path", type=str, default="./config/base_missing_modality_1.yaml")
+    parser = argparse.ArgumentParser("train multimodal")
+    parser.add_argument("--config_path", type=str, default="./config/base_full_modality_1.yaml")
 
     return parser.parse_args()
 
@@ -33,6 +32,11 @@ def get_transforms(hparams):
     image_size = hparams["image_size"]
 
     all_transforms = {}
+
+    def create_input_drop_out(image, **params):
+        image_size = hparams["image_size"]
+        return np.zeros((int(image_size), int(image_size), 3), dtype=np.float32)
+
     all_transforms["street"] = {
         "train": alb.Compose(
             [
@@ -88,6 +92,19 @@ def get_transforms(hparams):
             ]
         ),
     }
+
+    all_transforms["street"]["train"] = alb.OneOf(
+        [
+            all_transforms["street"]["train"],
+            alb.Compose(
+                [
+                    alb.Lambda(image=create_input_drop_out),
+                    ToTensorV2(),
+                ]
+            ),
+        ],
+        p=1.0,
+    )
 
     all_transforms["ortho"] = {
         "train": alb.Compose(
@@ -146,13 +163,9 @@ def get_transforms(hparams):
     def clip_s2(image, **params):
         return np.clip(image, 0, 10000)
 
-    def extract_rgb(image, **params):
-        return image[:, :, [3, 2, 1]]
-
     all_transforms["s2"] = {
         "train": alb.Compose(
             [
-                alb.Lambda(image=extract_rgb),
                 S2RandomRotation(limits=(0, 360), always_apply=False, p=0.9),
                 alb.Flip(p=0.9),
                 alb.Lambda(image=clip_s2),
@@ -162,7 +175,6 @@ def get_transforms(hparams):
         ),
         "val": alb.Compose(
             [
-                alb.Lambda(image=extract_rgb),
                 alb.Lambda(image=clip_s2),
                 alb.ToFloat(max_value=10000.0),
                 ToTensorV2(),
@@ -244,7 +256,7 @@ def main():
         num_workers=hparams["num_workers"],
     )
 
-    model = MultiModalNetPl(hparams)
+    model = MultiModalNetFullModalityPl(hparams)
     trainer = Trainer(
         default_root_dir=hparams["output_root_dir"],
         max_epochs=hparams["trainer"]["max_epochs"],

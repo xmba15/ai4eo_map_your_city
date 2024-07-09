@@ -35,18 +35,29 @@ def get_transforms(hparams):
     all_transforms["street"] = {
         "train": alb.Compose(
             [
-                alb.RandomCropFromBorders(crop_left=0.05, crop_right=0.05, crop_top=0.05, crop_bottom=0.05, p=0.5),
                 alb.OneOf(
                     [
                         alb.Compose(
                             [
                                 alb.Resize(height=image_size, width=image_size, p=1.0),
-                                alb.Rotate(limit=(-5, 5), p=0.7, border_mode=cv2.BORDER_CONSTANT, value=0),
+                                alb.ShiftScaleRotate(
+                                    shift_limit=(-0.05, 0.05),
+                                    rotate_limit=(-5, 5),
+                                    border_mode=cv2.BORDER_CONSTANT,
+                                    value=0,
+                                    p=0.7,
+                                ),
                             ]
                         ),
                         alb.Compose(
                             [
-                                alb.Rotate(limit=(-5, 5), p=0.7, border_mode=cv2.BORDER_CONSTANT, value=0),
+                                alb.ShiftScaleRotate(
+                                    shift_limit=(-0.05, 0.05),
+                                    rotate_limit=(-5, 5),
+                                    border_mode=cv2.BORDER_CONSTANT,
+                                    value=0,
+                                    p=0.7,
+                                ),
                                 alb.Resize(height=image_size, width=image_size, p=1.0),
                             ]
                         ),
@@ -62,7 +73,7 @@ def get_transforms(hparams):
                         alb.GridDropout(),
                         alb.Spatter(),
                     ],
-                    p=0.5,
+                    p=0.7,
                 ),
                 alb.ToFloat(max_value=255.0),
                 ToTensorV2(),
@@ -80,18 +91,29 @@ def get_transforms(hparams):
     all_transforms["ortho"] = {
         "train": alb.Compose(
             [
-                alb.RandomCropFromBorders(crop_left=0.01, crop_right=0.01, crop_top=0.01, crop_bottom=0.01, p=0.6),
                 alb.OneOf(
                     [
                         alb.Compose(
                             [
                                 alb.Resize(height=image_size, width=image_size),
-                                alb.Rotate(limit=180, p=0.7, border_mode=cv2.BORDER_CONSTANT, value=0),
+                                alb.ShiftScaleRotate(
+                                    shift_limit=(-0.005, 0.005),
+                                    rotate_limit=(-180, 180),
+                                    border_mode=cv2.BORDER_CONSTANT,
+                                    value=0,
+                                    p=0.9,
+                                ),
                             ]
                         ),
                         alb.Compose(
                             [
-                                alb.Rotate(limit=180, p=0.7, border_mode=cv2.BORDER_CONSTANT, value=0),
+                                alb.ShiftScaleRotate(
+                                    shift_limit=(-0.005, 0.005),
+                                    rotate_limit=(-180, 180),
+                                    border_mode=cv2.BORDER_CONSTANT,
+                                    value=0,
+                                    p=0.9,
+                                ),
                                 alb.Resize(height=image_size, width=image_size),
                             ]
                         ),
@@ -101,6 +123,12 @@ def get_transforms(hparams):
                 alb.ColorJitter(p=0.5),
                 alb.AdvancedBlur(p=0.5),
                 alb.Flip(p=0.7),
+                alb.OneOf(
+                    [
+                        alb.CoarseDropout(min_holes=100, max_holes=200),
+                    ],
+                    p=0.6,
+                ),
                 alb.ToFloat(max_value=255.0),
                 ToTensorV2(),
             ]
@@ -120,8 +148,8 @@ def get_transforms(hparams):
     all_transforms["s2"] = {
         "train": alb.Compose(
             [
-                S2RandomRotation(limits=(0, 360), always_apply=False, p=0.7),
-                alb.Flip(p=0.7),
+                S2RandomRotation(limits=(0, 360), always_apply=False, p=0.9),
+                alb.Flip(p=0.9),
                 alb.Lambda(image=clip_s2),
                 alb.ToFloat(max_value=10000.0),
                 ToTensorV2(),

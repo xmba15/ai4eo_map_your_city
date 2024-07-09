@@ -1,0 +1,50 @@
+image_size: 512
+seed: 2024
+
+dataset:
+  n_splits: 10
+  fold_th: 9
+  train_dir: ~/publicWorkspace/data/building-age-dataset/train/data
+  test_dir: ~/publicWorkspace/data/building-age-dataset/test/data
+  train_csv: ~/publicWorkspace/data/building-age-dataset/train/train-set.csv
+  test_csv: ~/publicWorkspace/data/building-age-dataset/test/test-set.csv
+
+full_modality:
+  # tf_efficientnetv2_s
+  base_full_modality_1:
+    config_path: ./config/base_full_modality_1.yaml
+    weights_path: ./models/base_full_modality_1/2024-07-09-f0_tf_efficientnetv2_s/2024-07-09-f0_tf_efficientnetv2_s_40_0.0002/checkpoints/epoch=6-step=4858.ckpt
+
+  # mobilevitv2_150
+  base_full_modality_2:
+    config_path: ./config/base_full_modality_2.yaml
+    weights_path: ./models/base_full_modality_2/2024-07-09-f1_mobilevitv2_150/2024-07-09-f1_mobilevitv2_150_40_0.0002/checkpoints/epoch=5-step=4164.ckpt
+
+  # tf_efficientnetv2_b3 geometric
+  base_full_modality_3:
+    config_path: ./config/base_full_modality_3.yaml
+    weights_path: ./models/base_full_modality_3/2024-07-08-f2_tf_efficientnetv2_b3/2024-07-08-f2_tf_efficientnetv2_b3_48_0.0002/checkpoints/epoch=6-step=4053.ckpt
+
+  # mobilevitv2_150 geometric
+  base_full_modality_4:
+    config_path: ./config/base_full_modality_4.yaml
+    weights_path: ./models/base_full_modality_4/2024-07-08-f7-geometric_mobilevitv2_150/2024-07-08-f7-geometric_mobilevitv2_150_40_0.0002/checkpoints/epoch=13-step=9716.ckpt
+
+input_drop:
+  # tf_efficientnetv2_b3 geometric
+  base_full_modality_input_dropout_1:
+    config_path: ./config/base_full_modality_input_dropout_1.yaml
+    weights_path: ./models/base_full_modality_input_dropout_1/2024-07-08-input-dropout-f5_tf_efficientnetv2_b3/2024-07-08-input-dropout-f5_tf_efficientnetv2_b3_48_0.0002/checkpoints/epoch=15-step=9264.ckpt
+
+  # regnetz_c16
+  base_full_modality_input_dropout_2:
+    config_path: ./config/base_full_modality_input_dropout_2.yaml
+    weights_path: ./models/base_full_modality_input_dropout_2/2024-07-08-input-dropout-f7_regnetz_c16/2024-07-08-input-dropout-f7_regnetz_c16_40_0.0002/checkpoints/epoch=6-step=4858.ckpt
+
+  # mobilevitv2_150
+  base_full_modality_input_dropout_3:
+    config_path: ./config/base_full_modality_input_dropout_3.yaml
+    weights_path: ./models/base_full_modality_input_dropout_3/2024-07-08-input-dropout-f6_mobilevitv2_150/2024-07-08-input-dropout-f6_mobilevitv2_150_40_0.0002/checkpoints/epoch=24-step=17375.ckpt
+
+shared_encoder:
+  

@@ -2,11 +2,11 @@
 seed: 2024
 
 num_workers: 4
-experiment_name: "2024-07-08-f2"
+experiment_name: "2024-07-08-f7-geometric"
 
 dataset:
   n_splits: 10
-  fold_th: 2
+  fold_th: 7
   train_dir: ~/publicWorkspace/data/building-age-dataset/train/data
   test_dir: ~/publicWorkspace/data/building-age-dataset/test/data
   train_csv: ~/publicWorkspace/data/building-age-dataset/train/train-set.csv
@@ -14,7 +14,7 @@ dataset:
 
 model:
   type: src.models.MultiModalNetFullModalityGeometricFusion
-  encoder_name: tf_efficientnetv2_b3
+  encoder_name: mobilevitv2_150
   num_classes: 7
 
 loss:
@@ -40,10 +40,10 @@ trainer:
   resume_from_checkpoint:
 
 train_parameters:
-  batch_size: 6
+  batch_size: 5
 
 val_parameters:
-  batch_size: 6
+  batch_size: 5
 
 output_root_dir: experiments
 image_size: 512

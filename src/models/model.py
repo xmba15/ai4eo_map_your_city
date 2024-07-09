@@ -5,6 +5,7 @@ from torch import nn
 
 __all__ = (
     "MultiModalNet",
+    "MultiModalNetSharedStreetOrtho",
     "MultiModalNetFullModalityFeatureFusion",
     "MultiModalNetFullModalityGeometricFusion",
 )
@@ -113,6 +114,132 @@ class MultiModalNet(nn.Module):
         fused_feats = fused_feats.transpose(0, 1).reshape(fused_feats.shape[1], -1)
         fused_feats = torch.cat(
             (fused_feats, nn.functional.one_hot(country_id, num_classes=self.num_classes).float()), axis=1
+        )
+
+        logits = self.fc(fused_feats)
+
+        spec_logits = self.domain_classfier(spec_feats[0])
+        for i in range(1, num_modal):
+            spec_logits = torch.cat((spec_logits, self.domain_classfier(spec_feats[i])), axis=0)
+
+        return logits, spec_logits, shared_feats
+
+
+class CompositionalLayerStreetOrtho(nn.Module):
+    def __init__(
+        self,
+        in_features,
+    ):
+        super().__init__()
+        self.conv = nn.Conv2d(in_features * 2, in_features, kernel_size=1)
+
+    def forward(self, f1, f2):
+        """
+        :param f1: shared-modality fts
+        :param f2: specific-modality fts
+        :return:
+        """
+        residual = torch.cat((f1, f2), 1)
+        residual = self.conv(residual)
+        features = f1 + residual
+
+        return features
+
+
+class MultiModalNetSharedStreetOrtho(nn.Module):
+    def __init__(
+        self,
+        encoder_name,
+        s2_encoder_name,
+        num_classes,
+    ):
+        super().__init__()
+        self.num_classes = num_classes
+        self.in_features = _get_extractor_in_features(encoder_name)
+        self.s2_in_features = _get_extractor_in_features(s2_encoder_name)
+
+        self.shared_enc = timm.create_model(
+            encoder_name,
+            pretrained=True,
+            global_pool="",
+            num_classes=0,
+        )
+
+        self.s2_enc = timm.create_model(
+            s2_encoder_name,
+            pretrained=True,
+            num_classes=0,
+        )
+
+        self.ortho_enc = timm.create_model(
+            encoder_name,
+            pretrained=True,
+            num_classes=0,
+            global_pool="",
+        )
+
+        self.street_enc = timm.create_model(
+            encoder_name,
+            pretrained=True,
+            num_classes=0,
+            global_pool="",
+        )
+
+        self.compos_layer = CompositionalLayerStreetOrtho(self.in_features)
+        self.domain_classfier = nn.Sequential(
+            SelectAdaptivePool2d(pool_type="avg", flatten=nn.Flatten(start_dim=1, end_dim=-1)),
+            nn.Linear(in_features=self.in_features, out_features=2, bias=True),
+        )
+
+        self.fused_layer = nn.Sequential(
+            nn.Conv2d(self.in_features * 2, self.in_features, kernel_size=1),
+            nn.BatchNorm2d(self.in_features),
+            nn.ReLU(inplace=True),
+            SelectAdaptivePool2d(pool_type="avg", flatten=nn.Flatten(start_dim=1, end_dim=-1)),
+        )
+
+        self.fc = nn.Linear(self.in_features + self.s2_in_features + self.num_classes, self.num_classes)
+
+    def forward(
+        self,
+        images,
+        s2_data,
+        country_id,
+    ):
+        num_channel = images.shape[1]
+        assert num_channel in [3, 6]
+        num_modal = num_channel // 3
+
+        spec_feats = self.ortho_enc(images[:, :3, ...])[None, ...]
+        if num_channel == 6:
+            spec_feats = torch.cat((spec_feats, self.street_enc(images[:, 3:, ...])[None, ...]), axis=0)
+
+        shared_feats = self.shared_enc(images[:, :3, ...])[None, ...]
+        if num_channel == 6:
+            shared_feats = torch.cat((shared_feats, self.shared_enc(images[:, 3:, ...])[None, ...]), axis=0)
+
+        fused_feats = self.compos_layer(shared_feats[0], spec_feats[0])[None, ...]
+        for i in range(1, num_modal):
+            fused_feats = torch.cat((fused_feats, self.compos_layer(shared_feats[i], spec_feats[i])[None, ...]), axis=0)
+
+        if num_modal == 1:
+            fused_feats = torch.cat((fused_feats, shared_feats), axis=0)
+
+        fused_feats = fused_feats.transpose(0, 1).reshape(
+            fused_feats.shape[1],
+            fused_feats.shape[0] * fused_feats.shape[2],
+            fused_feats.shape[3],
+            fused_feats.shape[4],
+        )
+        fused_feats = self.fused_layer(fused_feats)
+
+        fused_feats = torch.cat(
+            (
+                fused_feats,
+                self.s2_enc(s2_data),
+                nn.functional.one_hot(country_id, num_classes=self.num_classes).float(),
+            ),
+            axis=1,
         )
 
         logits = self.fc(fused_feats)

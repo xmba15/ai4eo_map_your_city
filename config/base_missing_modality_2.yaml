@@ -2,19 +2,19 @@
 seed: 2024
 
 num_workers: 4
-experiment_name: "2024-07-08-f2"
+experiment_name: "2024-07-09-missing-modality-shared-f4"
 
 dataset:
   n_splits: 10
-  fold_th: 2
+  fold_th: 4
   train_dir: ~/publicWorkspace/data/building-age-dataset/train/data
   test_dir: ~/publicWorkspace/data/building-age-dataset/test/data
   train_csv: ~/publicWorkspace/data/building-age-dataset/train/train-set.csv
   test_csv: ~/publicWorkspace/data/building-age-dataset/test/test-set.csv
 
 model:
-  type: src.models.MultiModalNetFullModalityGeometricFusion
-  encoder_name: tf_efficientnetv2_b3
+  encoder_name: tf_efficientnetv2_b1
+  s2_encoder_name: tf_efficientnetv2_b0
   num_classes: 7
 
 loss:
@@ -23,7 +23,7 @@ loss:
 
 optimizer:
   type: timm.optim.AdamW
-  lr: 0.0002
+  lr: 0.0001
   weight_decay: 0.001
 
 scheduler:
@@ -40,10 +40,11 @@ trainer:
   resume_from_checkpoint:
 
 train_parameters:
-  batch_size: 6
+  batch_size: 5
 
 val_parameters:
-  batch_size: 6
+  batch_size: 5
 
 output_root_dir: experiments
 image_size: 512
+input_dropout: True

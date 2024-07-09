@@ -2,18 +2,18 @@
 seed: 2024
 
 num_workers: 4
-experiment_name: "2024-07-08-f2"
+experiment_name: "2024-07-13-input-dropout-f8"
 
 dataset:
   n_splits: 10
-  fold_th: 2
+  fold_th: 8
   train_dir: ~/publicWorkspace/data/building-age-dataset/train/data
   test_dir: ~/publicWorkspace/data/building-age-dataset/test/data
   train_csv: ~/publicWorkspace/data/building-age-dataset/train/train-set.csv
   test_csv: ~/publicWorkspace/data/building-age-dataset/test/test-set.csv
 
 model:
-  type: src.models.MultiModalNetFullModalityGeometricFusion
+  type: src.models.MultiModalNetFullModalityFeatureFusion
   encoder_name: tf_efficientnetv2_b3
   num_classes: 7
 
@@ -36,14 +36,14 @@ trainer:
   accelerator: "cuda"
   max_epochs: 30
   gradient_clip_val: 5.0
-  accumulate_grad_batches: 8
+  accumulate_grad_batches: 10
   resume_from_checkpoint:
 
 train_parameters:
-  batch_size: 6
+  batch_size: 4
 
 val_parameters:
-  batch_size: 6
+  batch_size: 4
 
 output_root_dir: experiments
 image_size: 512
