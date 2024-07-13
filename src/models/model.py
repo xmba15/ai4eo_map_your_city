@@ -8,6 +8,7 @@ __all__ = (
     "MultiModalNetSharedStreetOrtho",
     "MultiModalNetFullModalityFeatureFusion",
     "MultiModalNetFullModalityGeometricFusion",
+    "MultiModalNetFullModalityAttentionFusion",
 )
 
 
@@ -389,3 +390,120 @@ class MultiModalNetFullModalityGeometricFusion(nn.Module):
         feat = self.fc(feat)
 
         return feat
+
+
+class AttentionLinearFusion(nn.Module):
+    def __init__(
+        self,
+        in_features,
+        num_modalities=2,
+    ):
+        super().__init__()
+        self.fc = nn.Linear(in_features, num_modalities)
+
+    def forward(self, features):
+        combined_feat = torch.cat(features, dim=1)
+        attention_scores = nn.functional.softmax(self.fc(combined_feat), dim=1)
+        weighted_feat = [features[i] * attention_scores[:, i : i + 1] for i in range(len(features))]
+
+        return torch.cat(weighted_feat, dim=1)
+
+
+class AttentionFeatureMapFusion(nn.Module):
+    def __init__(
+        self,
+        channels,
+        num_modalities=3,
+    ):
+        super().__init__()
+        self.attention = nn.Sequential(
+            nn.Conv2d(channels * 3, num_modalities, kernel_size=1),
+            nn.BatchNorm2d(3),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(
+        self,
+        ortho_feat,
+        street_feat,
+        s2_feat,
+    ):
+        attention_scores = self.attention(
+            torch.cat(
+                (
+                    ortho_feat,
+                    street_feat,
+                    s2_feat,
+                ),
+                dim=1,
+            )
+        )
+        attention_scores = torch.softmax(attention_scores, dim=1)
+        combined_feat = (
+            ortho_feat * attention_scores[:, 0:1, :, :]
+            + street_feat * attention_scores[:, 1:2, :, :]
+            + s2_feat * attention_scores[:, 2:3, :, :]
+        )
+        return combined_feat
+
+
+class MultiModalNetFullModalityAttentionFusion(nn.Module):
+    def __init__(
+        self,
+        encoder_name,
+        num_classes,
+    ):
+        super().__init__()
+
+        self.in_features = _get_extractor_in_features(encoder_name)
+        self.num_classes = num_classes
+
+        self.s2_enc = timm.create_model(
+            encoder_name,
+            pretrained=True,
+            num_classes=0,
+            global_pool="",
+            output_stride=4,
+            in_chans=12,
+        )
+
+        self.ortho_enc = timm.create_model(
+            encoder_name,
+            pretrained=True,
+            global_pool="",
+            num_classes=0,
+        )
+
+        self.street_enc = timm.create_model(
+            encoder_name,
+            pretrained=True,
+            global_pool="",
+            num_classes=0,
+        )
+
+        self.attention = AttentionFeatureMapFusion(
+            self.in_features,
+        )
+        self.linear_attention = AttentionLinearFusion(self.in_features + self.num_classes)
+
+        self.global_pool = SelectAdaptivePool2d(pool_type="avg", flatten=nn.Flatten(start_dim=1, end_dim=-1))
+        self.fc = nn.Linear(self.in_features + self.num_classes, self.num_classes)
+
+    def forward(
+        self,
+        images,
+        s2_data,
+        country_id,
+    ):
+        combined_feat = self.attention(
+            self.ortho_enc(images[:, :3, ...]),
+            self.street_enc(images[:, 3:, ...]),
+            self.s2_enc(s2_data),
+        )
+        combined_feat = self.global_pool(combined_feat)
+        combined_feat = self.linear_attention(
+            (combined_feat, nn.functional.one_hot(country_id, num_classes=self.num_classes).float())
+        )
+        combined_feat = self.fc(combined_feat)
+
+        return combined_feat
