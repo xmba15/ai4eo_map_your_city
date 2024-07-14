@@ -495,15 +495,20 @@ class MultiModalNetFullModalityAttentionFusion(nn.Module):
         s2_data,
         country_id,
     ):
+        ortho_feat = self.ortho_enc(images[:, :3, ...])
+        street_feat = self.street_enc(images[:, 3:, ...])
+        s2_feat = self.s2_enc(s2_data)
+
         combined_feat = self.attention(
-            self.ortho_enc(images[:, :3, ...]),
-            self.street_enc(images[:, 3:, ...]),
-            self.s2_enc(s2_data),
+            ortho_feat,
+            street_feat,
+            s2_feat,
         )
+
         combined_feat = self.global_pool(combined_feat)
         combined_feat = self.linear_attention(
             (combined_feat, nn.functional.one_hot(country_id, num_classes=self.num_classes).float())
         )
         combined_feat = self.fc(combined_feat)
 
-        return combined_feat
+        return combined_feat, ortho_feat, street_feat, s2_feat

@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, Subset
 _CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(_CURRENT_DIR, "../"))
 from src.data import CountryCode, CustomSubset, MapYourCityDataset, S2RandomRotation
-from src.integrated import MultiModalNetFullModalityPl
+from src.integrated import MultiModalNetFullModalityAttentionFusionPl
 from src.utils import fix_seed, worker_init_fn
 
 
@@ -242,7 +242,7 @@ def main():
         num_workers=hparams["num_workers"],
     )
 
-    model = MultiModalNetFullModalityPl(hparams)
+    model = MultiModalNetFullModalityAttentionFusionPl(hparams)
 
     trainer = Trainer(
         default_root_dir=hparams["output_root_dir"],
