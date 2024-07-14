@@ -10,22 +10,23 @@ dataset:
   test_csv: ~/publicWorkspace/data/building-age-dataset/test/test-set.csv
 
 full_modality:
-  # tf_efficientnetv2_s
+  # tf_efficientnetv2_s: 0.717
   base_full_modality_1:
     config_path: ./config/base_full_modality_1.yaml
     weights_path: ./models/base_full_modality_1/2024-07-09-f0_tf_efficientnetv2_s/2024-07-09-f0_tf_efficientnetv2_s_40_0.0002/checkpoints/epoch=6-step=4858.ckpt
 
-  # mobilevitv2_150
+  # mobilevitv2_150: 0.7333
   base_full_modality_2:
     config_path: ./config/base_full_modality_2.yaml
     weights_path: ./models/base_full_modality_2/2024-07-09-f1_mobilevitv2_150/2024-07-09-f1_mobilevitv2_150_40_0.0002/checkpoints/epoch=5-step=4164.ckpt
 
-  # tf_efficientnetv2_b3 geometric
+  # tf_efficientnetv2_b3 geometric: 0.727
   base_full_modality_3:
     config_path: ./config/base_full_modality_3.yaml
-    weights_path: ./models/base_full_modality_3/2024-07-08-f2_tf_efficientnetv2_b3/2024-07-08-f2_tf_efficientnetv2_b3_48_0.0002/checkpoints/epoch=6-step=4053.ckpt
+    # weights_path: ./models/base_full_modality_3/2024-07-08-f2_tf_efficientnetv2_b3/2024-07-08-f2_tf_efficientnetv2_b3_48_0.0002/checkpoints/epoch=6-step=4053.ckpt
+    weights_path: ./models/base_full_modality_3/2024-07-08-f2_tf_efficientnetv2_b3/2024-07-08-f2_tf_efficientnetv2_b3_48_0.0001/checkpoints/epoch=4-step=2895.ckpt
 
-  # mobilevitv2_150 geometric
+  # mobilevitv2_150 geometric: 0.727
   base_full_modality_4:
     config_path: ./config/base_full_modality_4.yaml
     weights_path: ./models/base_full_modality_4/2024-07-08-f7-geometric_mobilevitv2_150/2024-07-08-f7-geometric_mobilevitv2_150_40_0.0002/checkpoints/epoch=13-step=9716.ckpt
@@ -46,5 +47,16 @@ input_drop:
     config_path: ./config/base_full_modality_input_dropout_3.yaml
     weights_path: ./models/base_full_modality_input_dropout_3/2024-07-08-input-dropout-f6_mobilevitv2_150/2024-07-08-input-dropout-f6_mobilevitv2_150_40_0.0002/checkpoints/epoch=24-step=17375.ckpt
 
+attention_fusion:
+  base_full_modality_attention_fusion_1:
+    config_path: ./config/base_full_modality_attention_fusion_1.yaml
+    weights_path: ./models/base_full_modality_attention_fusion_1/2024-07-14-f9-attention-fusion_tf_efficientnetv2_b3/2024-07-14-f9-attention-fusion_tf_efficientnetv2_b3_56_0.0001/checkpoints/epoch=11-step=5952.ckpt
+
+# shared encoder with input dropout
 shared_encoder:
-  
+    config_path: ./config/base_missing_modality_2.yaml
+    weights_path: ./models/base_missing_modality_2/2024-07-09-missing-modality-shared-f4_tf_efficientnetv2_b1/2024-07-09-missing-modality-shared-f4_tf_efficientnetv2_b1_40_0.0001/checkpoints/epoch=12-step=9022.ckpt
+
+  base_missing_modality_3:
+    config_path: ./config/base_missing_modality_3.yaml
+    weights_path: ./models/base_missing_modality_3/2024-07-13-missing-modality-shared-input-dropout-f5_tf_efficientnetv2_b2/2024-07-13-missing-modality-shared-input-dropout-f5_tf_efficientnetv2_b2_40_0.0001/checkpoints/epoch=13-step=9716.ckpt

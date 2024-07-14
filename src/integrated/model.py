@@ -480,9 +480,9 @@ class MultiModalNetFullModalityAttentionFusionPl(pl.LightningModule):
             else:
                 assert loss_name == "distribution"
                 cur_loss = (
-                    loss_class(shared_feats[0], shared_feats[1])
-                    + loss_class(shared_feats[1], shared_feats[2])
-                    + loss_class(shared_feats[2], shared_feats[0])
+                    loss_class(ortho_feat, street_feat)
+                    + loss_class(street_feat, s2_feat)
+                    + loss_class(ortho_feat, s2_feat)
                 )
 
             total_loss += weight * cur_loss
@@ -545,7 +545,7 @@ class MultiModalNetFullModalityAttentionFusionPl(pl.LightningModule):
                 sync_dist=True,
             )
 
-        return loss
+        return total_loss
 
     def validation_step(self, batch, batch_idx):
         total_loss, losses_dict, acc = self.common_step(batch, batch_idx, is_val=True)
